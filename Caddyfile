@@ -1,0 +1,6 @@
+{$DOMAIN:localhost} {
+  handle /api/* { reverse_proxy api:8000 }
+  handle /health { reverse_proxy api:8000 }
+  handle /mcp* { reverse_proxy api:8000 }
+  handle { reverse_proxy ui:3000 }
+}

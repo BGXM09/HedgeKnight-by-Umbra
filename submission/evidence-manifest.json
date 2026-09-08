@@ -1,0 +1,11 @@
+{
+  "schema_version": "1.0",
+  "claims": [
+    {"claim":"Deterministic 50% BNB hedge sizing","code_path":"hedgeknight/engine.py","scenario":"valid-50","evidence":"opening receipt","verification_command":"pytest -q tests/test_smoke.py","classification":"simulated"},
+    {"claim":"Ordered risk policy blocks unsafe plans","code_path":"hedgeknight/engine.py","scenario":"eight blocked fixtures","evidence":"risk.checks in plan JSON","verification_command":"pytest -q tests/test_smoke.py","classification":"real"},
+    {"claim":"Market evidence is source-labelled","code_path":"hedgeknight/engine.py","scenario":"valid-50","evidence":"bnbusdt-replay-2026-09-08","verification_command":"curl localhost:8000/api/market","classification":"replay"},
+    {"claim":"Execution and unwind are explicitly simulated","code_path":"hedgeknight/engine.py","scenario":"valid-unwind","evidence":"linked opening and closing receipts","verification_command":"pytest -q tests/test_smoke.py","classification":"simulated"},
+    {"claim":"REST and MCP share one engine","code_path":"hedgeknight/api.py","scenario":"valid-50","evidence":"FastAPI and FastMCP call shared engine instance","verification_command":"curl localhost:8000/mcp-info","classification":"real"}
+  ]
+}
+

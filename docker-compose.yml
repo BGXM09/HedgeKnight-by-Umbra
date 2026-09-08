@@ -1,0 +1,20 @@
+services:
+  api:
+    build: {context: ., dockerfile: Dockerfile.api}
+    environment: [HEDGEKNIGHT_DB=/data/hedgeknight.db, UI_ORIGIN=http://localhost:3000]
+    volumes: [hedgeknight-data:/data]
+    ports: ["8000:8000"]
+  ui:
+    build: ./ui
+    environment: [NEXT_PUBLIC_API_URL=http://localhost:8000]
+    ports: ["3000:3000"]
+    depends_on: [api]
+  caddy:
+    image: caddy:2-alpine
+    ports: ["80:80", "443:443"]
+    volumes: ["./Caddyfile:/etc/caddy/Caddyfile:ro", "caddy-data:/data"]
+    depends_on: [ui, api]
+volumes:
+  hedgeknight-data:
+  caddy-data:
+

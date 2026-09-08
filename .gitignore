@@ -1,0 +1,12 @@
+__pycache__/
+.pytest_cache/
+.venv/
+.venv312/
+.pydeps/
+data/
+ui/node_modules/
+ui/.next/
+.env
+.impeccable/review/
+.agents/
+.codex/
