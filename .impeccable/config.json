@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "layout-transition",
+        "value": "*",
+        "files": [
+          "ui/app/globals.css"
+        ],
+        "createdAt": "2026-09-08T19:58:18.051Z",
+        "reason": "Exposure rail transition is explicitly disabled by the later .rail-track div,.rail-track i override; the original declaration is inert."
+      }
+    ]
+  }
+}
