@@ -1,0 +1,13 @@
+{
+  "name": "hedgeknight-by-umbra",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": ["ui"],
+  "scripts": {
+    "build": "npm --workspace ui run build",
+    "dev": "npm --workspace ui run dev"
+  },
+  "dependencies": {
+    "next": "16.3.4"
+  }
+}
