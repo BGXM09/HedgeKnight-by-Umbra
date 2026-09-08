@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import { Activity, ArrowDownToLine, Check, ChevronRight, CircleStop, Clock3, Copy, FileCheck2, Gauge, LayoutDashboard, LockKeyhole, Menu, OctagonAlert, Power, Radar, ReceiptText, RefreshCw, Settings, ShieldCheck, Sparkles, X } from "lucide-react";
+import LandingPage from "./LandingPage";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "";
 const commandDefault = "I hold 10 BNB. Hedge 50% of my exposure for 24 hours.";
@@ -17,8 +18,8 @@ async function call(path:string, init?:RequestInit) {
 function Mark(){return <div className="mark" aria-hidden="true"><span/></div>}
 function Badge({children,tone="gold"}:{children:React.ReactNode,tone?:string}){return <span className={`badge ${tone}`}>{children}</span>}
 
-export default function Dashboard(){
-  const [landing,setLanding]=useState(true);
+export function DashboardApp(){
+  const [landing,setLanding]=useState(false);
   const [nav,setNav]=useState("Overview"), [mobile,setMobile]=useState(false), [command,setCommand]=useState(commandDefault);
   const [ratio,setRatio]=useState(50), [duration,setDuration]=useState(24), [leverage,setLeverage]=useState(2);
   const [plan,setPlan]=useState<Any|null>(null), [position,setPosition]=useState<Any|null>(null), [receipts,setReceipts]=useState<Any[]>([]), [scenarios,setScenarios]=useState<Any[]>([]);
@@ -66,4 +67,8 @@ export default function Dashboard(){
       </div>
     </main>{mobile&&<button className="scrim" onClick={()=>setMobile(false)} aria-label="Close navigation"/>}
   </div>
+}
+
+export default function Page(){
+  return <LandingPage/>;
 }
