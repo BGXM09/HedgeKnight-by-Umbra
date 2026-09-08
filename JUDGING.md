@@ -10,7 +10,7 @@ The task spans natural-language intent, changing evidence, deterministic calcula
 
 ## Why Binance Agent OS is essential
 
-Official Binance MCP is the evidence boundary for market, funding, symbol-rule, and read-only account facts. HedgeKnight normalizes those observed reads and adds the protection-specific policy and lifecycle that Binance evidence alone does not provide. Missing connected evidence fails closed.
+Official Binance MCP is the evidence boundary for market, funding, symbol-rule, and optional read-only account facts. HedgeKnight adds the protection-specific policy and lifecycle that Binance evidence alone does not provide. In the public no-credential build, a source-labelled replay fixture preserves this boundary honestly.
 
 ## Architecture and safety
 
@@ -30,4 +30,5 @@ HedgeKnight is a protection workflow rather than a signal or price-prediction bo
 
 ## Limitations
 
-All financial actions are simulated. Market and account values come from verified official Binance MCP reads. Order execution is not wired and remains unavailable.
+All financial actions are simulated. Market values ship as a timestamped replay. Official Binance MCP authorization and tool discovery were unavailable during the build, so connected-data behavior is implemented as a strict evidence boundary and is not claimed as verified.
+

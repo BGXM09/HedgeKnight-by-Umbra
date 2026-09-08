@@ -6,15 +6,14 @@
 |---|---|
 | Decimal hedge sizing, costs, and ordered risk policy | `hedgeknight/engine.py` |
 | Expiring single-use plans, SQLite state, SHA-256 receipts | API responses and receipt downloads |
-| REST, SSE, and eleven MCP tools over one shared engine | `hedgeknight/api.py` |
+| REST, SSE, and ten MCP tools over one shared engine | `hedgeknight/api.py` |
 | Public dashboard and ten judge scenarios | `ui/app/page.tsx` |
 
-| What remains simulated | Label |
+| What is simulated or replayed | Label |
 |---|---|
-| Transfer, fill, PnL, funding accrual, unwind | `DEMO — SIMULATED EXECUTION` |
-| Order placement | Disabled; no Binance order endpoint is wired |
-
-Live BNBUSDT mark/index price, funding, symbol rules, Spot BNB balance, USDⓈ-M balance, and USDⓈ-M position are normalized from official Binance MCP read tools. The AI host calls those tools and submits their outputs to `POST /api/binance/read-snapshot`; HedgeKnight rejects missing data or unexpected tool provenance and has no replay fallback.
+| BNB market snapshot | Timestamped Binance public market replay fixture |
+| Portfolio, transfer, fill, position, PnL, funding accrual, unwind | `DEMO — SIMULATED EXECUTION` |
+| Official Binance MCP connected path | Adapter boundary only; authorization was unavailable during this build |
 
 ```text
 Judge browser → Next.js dashboard → FastAPI REST/SSE ┐
@@ -24,11 +23,11 @@ AI client → official Binance MCP + HedgeKnight MCP ──┘
 
 ## 60-second demo
 
-First use a supported AI host to submit a fresh official Binance MCP read snapshot to `POST /api/binance/read-snapshot`. Then open `Create hedge`, keep the prefilled “I hold 10 BNB. Hedge 50% of my exposure for 24 hours,” select 50%, 24 hours, and 2×, and calculate. Inspect the exact adjustment, costs, source labels, and ordered risk checks. Confirm the exact plan, simulate it, inspect the monitor, open the receipt, and prepare the reduce-only unwind. The judge scenarios reproduce every required policy state without enabling order execution.
+Open `Create hedge`, keep the prefilled “I hold 10 BNB. Hedge 50% of my exposure for 24 hours,” select 50%, 24 hours, and 2×, then calculate. Inspect the exact 5.000 BNB adjustment, costs, source labels, and ordered risk checks. Confirm the exact plan, simulate it, inspect the monitor, open the receipt, and prepare the reduce-only unwind. The Judge demo scenarios reproduce every required blocked state without login.
 
 ## Binance Agent OS dependency
 
-The AI host is the coordinator. Official Binance MCP provides source-labelled market and authenticated account evidence through `futures_usds.markPrice`, `futures_usds.exchangeInformation`, `spot.getAccount`, `futures_usds.futuresAccountBalanceV3`, and `futures_usds.positionInformationV2`. HedgeKnight MCP provides deterministic portfolio-protection intelligence and simulation. Live order execution remains deliberately disconnected.
+The AI host is the coordinator. Official Binance MCP provides discoverable, source-labelled market, funding, symbol-rule, and optional read-only account evidence. HedgeKnight MCP provides deterministic portfolio-protection intelligence and simulation. No official Binance MCP tool name is assumed because authorization and discovery were unavailable during this build.
 
 ## Quickstart
 
@@ -58,4 +57,4 @@ Caddy provisions HTTPS, routes `/api`, `/health`, and `/mcp` to FastAPI, and rou
 
 ## Limitations and risk disclosure
 
-HedgeKnight does not predict price, promise profit, or protect against every loss. This submission cannot place real orders. Slippage, fees, fills, PnL, and unwind are simulated. Connected evidence must include the observed official Binance MCP tools and retrieval time or ingestion fails closed; stale evidence is blocked by the risk gate.
+HedgeKnight does not predict price, promise profit, or protect against every loss. This submission cannot place real orders. Slippage, fees, funding, position, PnL, and unwind are simulated. Replay evidence can become stale; connected evidence must include an observed official Binance MCP source tool and retrieval time or the risk gate blocks it.

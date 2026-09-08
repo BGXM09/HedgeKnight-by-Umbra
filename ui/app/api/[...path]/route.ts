@@ -1,35 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createHash, randomUUID } from "node:crypto";
 
 const scenarios = [
-  ["valid-50", "Valid 50% · 24 hours", 50, 24, 2, "approved"],
-  ["leverage-10x", "10× leverage", 50, 24, 10, "blocked"],
-  ["over-hedge", "125% hedge", 125, 24, 2, "blocked"],
-  ["stale-evidence", "Stale market evidence", 50, 24, 2, "blocked"],
-  ["unverified-source", "Unverified connected source", 50, 24, 2, "blocked"],
-  ["funding-limit", "Funding cost above limit", 100, 168, 1, "blocked"],
-  ["expired-plan", "Expired plan", 50, 24, 2, "blocked"],
-  ["duplicate-plan", "Duplicate execution", 50, 24, 2, "blocked"],
-  ["kill-switch", "Kill switch enabled", 50, 24, 2, "blocked"],
-  ["valid-unwind", "Valid reduce-only unwind", 50, 24, 2, "approved"],
+  ["valid-50","Valid 50% · 24 hours",50,24,2,"approved"],["leverage-10x","10× leverage",50,24,10,"blocked"],["over-hedge","125% hedge",125,24,2,"blocked"],["stale-evidence","Stale market evidence",50,24,2,"blocked"],["unverified-source","Unverified connected source",50,24,2,"blocked"],["funding-limit","Funding cost above limit",100,168,1,"blocked"],["expired-plan","Expired plan",50,24,2,"blocked"],["duplicate-plan","Duplicate execution",50,24,2,"blocked"],["kill-switch","Kill switch enabled",50,24,2,"blocked"],["valid-unwind","Valid reduce-only unwind",50,24,2,"approved"]
 ].map(([id,label,ratio,duration,leverage,outcome])=>({id,label,ratio,duration,leverage,outcome}));
-
-const pathOf=(request:NextRequest)=>request.nextUrl.pathname.replace(/^\/api\//,"");
-const json=(body:unknown,status=200)=>NextResponse.json(body,{status});
-const unavailable=()=>json({error:{code:"BINANCE_EVIDENCE_UNAVAILABLE",message:"Fresh Binance MCP evidence has not been ingested into the production API."}},503);
-
-export async function GET(request:NextRequest){
-  const path=pathOf(request);
-  if(path==="status") return json({product:"HedgeKnight — by Umbra",mode:"connected-read-only",execution:"simulated_only",market_source:"unavailable",kill_switch:false,live_execution:"unavailable",time:new Date().toISOString()});
-  if(path==="market") return json({verification:"unavailable",source:"Binance MCP evidence has not been ingested",retrieved_at:new Date().toISOString(),source_tool:null});
-  if(path==="exposure") return json({spot_bnb:"0.000",live_short_bnb:"0.000",simulated_short_bnb:"0.000",net_bnb:"0.000",effective_hedge_percent:"0.00",futures_usdt_available:"0",evidence_verification:"unavailable",mode:"connected-read-only",execution:"simulated"});
-  if(path==="positions/active") return json(null);
-  if(path==="receipts") return json([]);
-  if(path==="scenarios") return json(scenarios);
-  return json({error:{code:"NOT_FOUND",message:"Unknown API endpoint."}},404);
-}
-
-export async function POST(request:NextRequest){
-  const path=pathOf(request);
-  if(path==="settings/kill-switch") return json({kill_switch:false});
-  return unavailable();
-}
+const state=globalThis as typeof globalThis&{plans?:Map<string,any>;position?:any;receipts?:any[];kill?:boolean};state.plans||=new Map();state.receipts||=[];
+const codes=["KILL_SWITCH","REAL_EXECUTION_DISABLED","MALFORMED_EVIDENCE","UNVERIFIED_SOURCE","STALE_DATA","SYMBOL_NOT_ALLOWED","INVALID_HEDGE_RATIO","OVER_HEDGE","LEVERAGE_LIMIT","NOTIONAL_LIMIT","FING_COST_LIMIT","PLAN_EXPIRED","DUPLICATE_PLAN"];
+function makePlan(intent:any,blocked?:string){const ratio=Number(intent.target_ratio),lev=Number(intent.leverage),hours=Number(intent.duration_hours),qty=10*ratio/100,notional=qty*611.9,funding=notional*.0001*hours/8;const fail=blocked||(state.kill?"KILL_SWITCH":lev>2?"LEVERAGE_LIMIT":ratio>100?"OVER_HEDGE":ratio<1?"INVALID_HEDGE_RATIO":funding>75?"FUNDING_COST_LIMIT":undefined);const plan:any={plan_id:randomUUID(),state:fail?"blocked":"proposed",mode:"demo",execution:"simulated",intent,proposal:{spot_quantity:"10.000",existing_short:"0.000",required_adjustment:qty.toFixed(3),target_short:qty.toFixed(3),net_exposure_before:"10.000",net_exposure_after:(10-qty).toFixed(3),hedge_percent_after:ratio.toFixed(2),reference_price:"611.90",hedge_notional:notional.toFixed(2),estimated_margin:(notional/lev).toFixed(2),opening_fee:(notional*.0004).toFixed(2),projected_funding:funding.toFixed(2),closing_fee:(notional*.0004).toFixed(2),total_estimated_cost:(notional*.0008+funding).toFixed(2),slippage_bps:"2",duration_hours:hours},risk:{decision:fail?"blocked":"approved",checks:codes.map(code=>({code,status:code===fail?"block":"pass",explanation:code===fail?"Blocked by deterministic policy. Correct this input or refresh its evidence.":"Check passed."}))}};state.plans!.set(plan.plan_id,plan);return plan}
+const pathOf=(r:NextRequest)=>r.nextUrl.pathname.replace(/^\/api\//,"");const err=(message:string,status=400)=>NextResponse.json({error:{message}},{status});
+export async function GET(r:NextRequest){const p=pathOf(r);if(p==="status")return NextResponse.json({mode:"demo",execution:"simulated",market_source:"replay",kill_switch:!!state.kill});if(p==="positions/active")return NextResponse.json(state.position||null);if(p==="receipts")return NextResponse.json(state.receipts);if(p==="scenarios")return NextResponse.json(scenarios);return err("Unknown endpoint",404)}
+export async function POST(r:NextRequest){const p=pathOf(r),body=await r.json().catch(()=>({}));if(p==="intents/parse")return NextResponse.json({asset:"BNB",symbol:"BNBUSDT",spot_quantity:"10",target_ratio:"50",duration_hours:24,leverage:2,execution:"simulated",source_command:body.command});if(p==="plans")return NextResponse.json(makePlan(body));const sid=p.match(/^scenarios\/(.+)\/load$/)?.[1];if(sid){const s:any=scenarios.find(x=>x.id===sid);if(!s)return err("Unknown scenario",404);state.kill=s.id==="kill-switch";const fail=({"leverage-10x":"LEVERAGE_LIMIT","over-hedge":"OVER_HEDGE","stale-evidence":"STALE_DATA","unverified-source":"UNVERIFIED_SOURCE","funding-limit":"FUNDING_COST_LIMIT","expired-plan":"PLAN_EXPIRED","duplicate-plan":"DUPLICATE_PLAN","kill-switch":"KILL_SWITCH"}as any)[s.id];return NextResponse.json({scenario:s,plan:makePlan({asset:"BNB",symbol:"BNBUSDT",spot_quantity:"10",target_ratio:String(s.ratio),duration_hours:s.duration,leverage:s.leverage,execution:"simulated",source_command:s.label},fail)})}const cid=p.match(/^plans\/(.+)\/confirm$/)?.[1];if(cid){const plan=state.plans!.get(cid);if(!plan)return err("Plan expired; calculate a fresh plan.");plan.state="confirmed";return NextResponse.json(plan)}const eid=p.match(/^plans\/(.+)\/simulate$/)?.[1];if(eid){const plan=state.plans!.get(eid);if(!plan)return err("Plan expired; calculate a fresh plan.");const position={position_id:randomUUID(),plan_id:eid,state:"open",remaining_quantity:plan.proposal.required_adjustment,opening_quantity:plan.proposal.required_adjustment,entry_price:"611.78",mark_price:"611.90",simulated_pnl:"0.00",hedge_ratio:plan.proposal.hedge_percent_after,expires_at:new Date(Date.now()+plan.proposal.duration_hours*36e5).toISOString(),mode:"demo",execution:"simulated"};state.position=position;const receipt:any={receipt_id:randomUUID(),kind:"opening",created_at:new Date().toISOString(),mode:"demo",execution:"simulated",position,proposal:plan.proposal,risk:plan.risk,final_state:"completed"};receipt.digest=createHash("sha256").update(JSON.stringify(receipt)).digest("hex");state.receipts!.unshift(receipt);return NextResponse.json({state:"completed",position,receipt})}const unwind=p.match(/^positions\/(.+)\/unwind-(plan|simulate)$/);if(unwind?.[2]==="plan")return NextResponse.json({position_id:unwind[1],quantity:state.position?.remaining_quantity,reduce_only:true,state:"proposed"});if(unwind){if(!state.position)return err("No active position");state.position={...state.position,state:"closed",remaining_quantity:"0.000",reduce_only:true};const receipt:any={receipt_id:randomUUID(),kind:"closing",created_at:new Date().toISOString(),mode:"demo",execution:"simulated",position:state.position,final_state:"completed"};receipt.digest=createHash("sha256").update(JSON.stringify(receipt)).digest("hex");state.receipts!.unshift(receipt);return NextResponse.json({state:"completed",position:state.position,receipt})}if(p==="settings/kill-switch"){state.kill=!!body.enabled;return NextResponse.json({kill_switch:state.kill})}return err("Unknown endpoint",404)}

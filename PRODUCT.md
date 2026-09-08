@@ -24,11 +24,11 @@ HedgeKnight is a portfolio-protection agent rather than a price-prediction bot. 
 
 ## Operating Context
 
-The connected mode requires a supported AI client to gather official Binance MCP evidence and pass source-labelled market, balance, and position reads to HedgeKnight. There is no replay fallback. All financial actions remain simulated. The canonical command is: “I hold 10 BNB. Hedge 50% of my exposure for 24 hours.”
+The default public Demo mode uses a sample 10 BNB portfolio and either provably sourced public information or a timestamped replay fixture. A supported AI client can optionally gather official Binance MCP evidence and pass normalized, source-labelled facts to the HedgeKnight MCP. All financial actions remain simulated. The canonical command is: “I hold 10 BNB. Hedge 50% of my exposure for 24 hours.”
 
 ## Capabilities and Constraints
 
-The submission supports BNB and BNBUSDT only, hedge ratios from 1–100%, leverage up to 2x, duration presets from 4 hours to 7 days, deterministic ordered risk checks, expiring single-use plans, simulated fills and positions, monitoring, reduce-only unwind, a persisted kill switch, SHA-256 receipts, ten judge scenarios, REST/SSE, and eleven HedgeKnight MCP tools over one shared engine. It never enables real-money execution or stores Binance trading credentials. Connected and simulated evidence must remain visibly distinct.
+The submission supports BNB and BNBUSDT only, hedge ratios from 1–100%, leverage up to 2x, duration presets from 4 hours to 7 days, deterministic ordered risk checks, expiring single-use plans, simulated fills and positions, monitoring, reduce-only unwind, a persisted kill switch, SHA-256 receipts, ten judge scenarios, REST/SSE, and ten HedgeKnight MCP tools over one shared engine. It never enables real-money execution or stores Binance trading credentials. Real, connected, replay, and simulated evidence must remain visibly distinct.
 
 ## Brand Commitments
 
@@ -36,7 +36,7 @@ The product is “HedgeKnight — by Umbra” with the tagline “AI-powered por
 
 ## Evidence on Hand
 
-The complete original product and submission specification is in `HEDGEKNIGHT_ONE_SHOT_BUILD.md`. Authenticated Binance MCP discovery is now available and the connected adapter must use only observed read-tool names. It must not fabricate testimonials, customer claims, market performance, or live execution.
+The complete confirmed product and submission specification is in `HEDGEKNIGHT_ONE_SHOT_BUILD.md`. No authenticated Binance MCP discovery or connected account evidence is available, so the build must use timestamped replay evidence and state this limitation plainly. It must not fabricate official Binance MCP tool names, testimonials, customer claims, market performance, or live execution.
 
 ## Product Principles
 
