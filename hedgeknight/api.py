@@ -14,7 +14,8 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from .engine import HedgeEngine, HedgeError, SCENARIOS
 
-engine = HedgeEngine(os.getenv("HEDGEKNIGHT_DB", "data/hedgeknight.db"))
+default_db = "/tmp/hedgeknight.db" if os.getenv("VERCEL") else "data/hedgeknight.db"
+engine = HedgeEngine(os.getenv("HEDGEKNIGHT_DB", default_db))
 app = FastAPI(title="HedgeKnight API", version="1.0.0", description="Deterministic BNB hedge planning and simulated execution.")
 app.add_middleware(CORSMiddleware, allow_origins=[os.getenv("UI_ORIGIN", "http://localhost:3000")], allow_methods=["*"], allow_headers=["*"])
 

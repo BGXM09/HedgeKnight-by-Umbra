@@ -10,7 +10,9 @@ const money = (v:any) => `$${Number(v).toLocaleString(undefined,{minimumFraction
 
 async function call(path:string, init?:RequestInit) {
   const response = await fetch(`${API}${path}`, {headers:{"Content-Type":"application/json"},...init});
-  const data = await response.json();
+  const text = await response.text();
+  let data:any={};
+  try{data=text?JSON.parse(text):{}}catch{throw new Error(`API returned ${response.status} without JSON. Try again or check the service deployment.`)}
   if (!response.ok) throw new Error(data.error?.message || "Request failed");
   return data;
 }
