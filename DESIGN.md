@@ -8,7 +8,7 @@ HedgeKnight is a risk operations console. The interface makes exposure compressi
 
 ## Color
 
-The canvas is near-black `#0B0E11`, with graphite surfaces `#111519` and `#171B20`, crisp rules `#2A2F35`, and warm primary text `#F4F0E5`. Gold `#F0B90B` marks selected controls, the protected exposure, and primary action. Green is reserved for passed policy and healthy state; amber for warnings and replay provenance; red for blocked and destructive state.
+The canvas is near-black `#0B0E11`, with graphite surfaces `#111519` and `#171B20`, crisp rules `#2A2F35`, and warm primary text `#F4F0E5`. Gold `#F0B90B` marks selected controls, the protected exposure, and primary action. Green is reserved for passed policy and healthy connected reads; amber for warnings; red for blocked and destructive state.
 
 ## Typography
 
@@ -22,7 +22,7 @@ At mobile widths, navigation becomes an off-canvas drawer. Metrics collapse to t
 
 ## Components and States
 
-Small bordered badges carry the persistent truth labels `DEMO`, `REPLAY DATA`, and `SIMULATED EXECUTION`. Buttons are compact rectangles with modest radii; pills are not used as structural containers. Risk checks show both icon and text status. Empty states explain the next safe action. Loading disables the originating action and names the current phase. Errors state the problem in a dismissible red surface.
+Small bordered badges carry the persistent truth labels `DEMO`, the current Binance MCP evidence state, and `SIMULATED EXECUTION`. Buttons are compact rectangles with modest radii; pills are not used as structural containers. Risk checks show both icon and text status. Empty states explain the next safe action. Loading disables the originating action and names the current phase. Errors state the problem in a dismissible red surface.
 
 ## Motion
 

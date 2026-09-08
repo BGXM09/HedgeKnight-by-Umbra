@@ -46,6 +46,15 @@ class KillBody(StrictModel):
     enabled: bool
 
 
+class BinanceSnapshotBody(StrictModel):
+    tools: dict[str, str]
+    mark_price: dict[str, Any]
+    symbol_rules: dict[str, Any]
+    spot_account: dict[str, Any]
+    futures_balances: list[dict[str, Any]]
+    positions: list[dict[str, Any]]
+
+
 @app.exception_handler(HedgeError)
 async def hedge_error(_: Request, exc: HedgeError):
     return JSONResponse({"error": {"code": exc.code, "message": exc.message}}, status_code=exc.status)
@@ -70,6 +79,12 @@ def exposure(): return engine.exposure()
 
 @app.get("/api/market")
 def market(): return engine.market()
+
+
+@app.post("/api/binance/read-snapshot")
+def binance_snapshot(body: BinanceSnapshotBody):
+    """Normalize read-only Binance MCP results; this endpoint never executes orders."""
+    return engine.ingest_binance_snapshot(body.model_dump())
 
 
 @app.post("/api/intents/parse")
@@ -134,7 +149,7 @@ async def events():
 
 @app.get("/mcp-info")
 def mcp_info():
-    return {"endpoint": "/mcp", "transport": "streamable-http", "tools": 10, "note": "Mount is active when the optional MCP SDK is installed."}
+    return {"endpoint": "/mcp", "transport": "streamable-http", "tools": 11, "note": "Mount is active when the optional MCP SDK is installed."}
 
 
 try:
@@ -147,6 +162,9 @@ try:
 
     @mcp.tool(description="Inspect Spot BNB, simulated short, net exposure, and effective hedge ratio.")
     def hedgeknight_exposure() -> dict[str, Any]: return engine.exposure()
+
+    @mcp.tool(description="Normalize and cache read-only Binance MCP market, account, and position evidence. Does not place orders.")
+    def hedgeknight_ingest_binance_snapshot(snapshot: dict[str, Any]) -> dict[str, Any]: return engine.ingest_binance_snapshot(snapshot)
 
     @mcp.tool(description="Estimate opening, funding, closing, and total costs for a BNB hedge.")
     def hedgeknight_funding_cost(target_ratio: float, duration_hours: int, leverage: int = 2) -> dict[str, Any]:
@@ -180,13 +198,3 @@ try:
     app.router.lifespan_context = mcp_app.router.lifespan_context
 except ImportError:
     mcp = None
-
-    @mcp.tool(description="Prepare a bounded reduce-only proposal for the remaining simulated short.")
-    def hedgeknight_propose_unwind(position_id: str) -> dict[str, Any]: return engine.propose_unwind(position_id)
-
-    @mcp.tool(description="Retrieve a tamper-evident simulated execution receipt by identifier.")
-    def hedgeknight_receipt(receipt_id: str) -> dict[str, Any]: return engine.receipt(receipt_id)
-
-    app.mount("/mcp", mcp.streamable_http_app())
-except ImportError:
-    pass

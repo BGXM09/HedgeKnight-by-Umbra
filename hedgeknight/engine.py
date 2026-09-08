@@ -5,17 +5,19 @@ import json
 import re
 import sqlite3
 import uuid
-from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal, ROUND_DOWN
 from pathlib import Path
 from typing import Any
+
+from .binance import BinanceEvidenceError, normalize_snapshot
 
 D = Decimal
 QTY_STEP = D("0.001")
 DEMO_MAX_NOTIONAL = D("100000")
 FUNDING_LIMIT = D("75")
 PLAN_TTL_SECONDS = 300
+EVIDENCE_MAX_AGE_SECONDS = 300
 
 
 def now() -> datetime:
@@ -47,19 +49,6 @@ def canonical_digest(payload: dict[str, Any]) -> str:
     clean = {k: v for k, v in payload.items() if k != "digest"}
     blob = json.dumps(clean, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
     return hashlib.sha256(blob.encode()).hexdigest()
-
-
-@dataclass(frozen=True)
-class MarketEvidence:
-    spot_price: str = "612.40"
-    perpetual_price: str = "611.90"
-    funding_rate: str = "0.0001"
-    min_notional: str = "5"
-    source: str = "Binance public market replay"
-    source_tool: str | None = None
-    retrieved_at: str = "2026-09-08T12:00:00Z"
-    verification: str = "replay"
-    fixture_id: str = "bnbusdt-replay-2026-09-08"
 
 
 SCENARIOS: list[dict[str, Any]] = [
@@ -110,22 +99,37 @@ class HedgeEngine:
         return self.status()
 
     def status(self) -> dict[str, Any]:
-        return {"product": "HedgeKnight — by Umbra", "mode": "demo", "execution": "simulated", "market_source": "replay", "kill_switch": self._state("kill_switch", False), "live_execution": "unavailable", "time": iso()}
+        evidence = self._state("binance_evidence")
+        return {"product": "HedgeKnight — by Umbra", "mode": "connected-read-only", "execution": "simulated_only", "market_source": "binance-mcp" if evidence else "unavailable", "kill_switch": self._state("kill_switch", False), "live_execution": "unavailable", "time": iso()}
 
     def market(self, overrides: dict[str, Any] | None = None) -> dict[str, Any]:
-        data = asdict(MarketEvidence())
+        data = self._state("binance_evidence", {"verification": "unavailable", "source": "Binance MCP evidence has not been ingested", "retrieved_at": iso(), "source_tool": None})
         data.update(overrides or {})
         return data
+
+    def ingest_binance_snapshot(self, raw: dict[str, Any]) -> dict[str, Any]:
+        try:
+            evidence = normalize_snapshot(raw)
+        except BinanceEvidenceError as exc:
+            raise HedgeError("INVALID_BINANCE_EVIDENCE", str(exc), 422) from exc
+        self.db.execute("INSERT OR REPLACE INTO state VALUES ('binance_evidence',?)", (json.dumps(evidence),))
+        self.db.commit()
+        return evidence
 
     def active_position(self) -> dict[str, Any] | None:
         row = self.db.execute("SELECT payload FROM positions ORDER BY rowid DESC LIMIT 1").fetchone()
         return json.loads(row[0]) if row else None
 
     def exposure(self) -> dict[str, Any]:
+        market = self.market()
+        spot = dec(market.get("spot_bnb", "0"))
+        position_amount = dec(market.get("position_amount", "0"))
+        live_short = max(D("0"), -position_amount)
         pos = self.active_position()
-        short = dec(pos["remaining_quantity"]) if pos and pos["state"] == "open" else D("0")
-        spot = D("10")
-        return {"spot_bnb": quantity(spot), "simulated_short_bnb": quantity(short), "net_bnb": quantity(spot-short), "effective_hedge_percent": money(short/spot*100), "mode": "demo", "execution": "simulated"}
+        simulated_short = dec(pos["remaining_quantity"]) if pos and pos["state"] == "open" else D("0")
+        net = spot - live_short - simulated_short
+        effective = (live_short + simulated_short) / spot * 100 if spot else D("0")
+        return {"spot_bnb": quantity(spot), "live_short_bnb": quantity(live_short), "simulated_short_bnb": quantity(simulated_short), "net_bnb": quantity(net), "effective_hedge_percent": money(effective), "futures_usdt_available": market.get("futures_usdt_available", "0"), "evidence_verification": market.get("verification", "unavailable"), "mode": "connected-read-only", "execution": "simulated"}
 
     def parse_intent(self, command: str) -> dict[str, Any]:
         ratio = re.search(r"(\d+(?:\.\d+)?)\s*%", command)
@@ -145,8 +149,8 @@ class HedgeEngine:
             ("KILL_SWITCH", not self._state("kill_switch", False), "Disable the kill switch to create a new plan."),
             ("REAL_EXECUTION_DISABLED", intent.get("execution", "simulated") == "simulated", "Select simulated execution; live execution is unavailable."),
             ("MALFORMED_EVIDENCE", all(market.get(k) for k in ("perpetual_price", "funding_rate", "min_notional", "source", "retrieved_at")), "Provide complete market evidence with units and retrieval time."),
-            ("UNVERIFIED_SOURCE", not connected or bool(market.get("source_tool")), "Connected data needs an observed official Binance MCP source tool."),
-            ("STALE_DATA", now() - retrieved <= timedelta(days=365) and not market.get("force_stale"), "Refresh the market evidence before proposing the hedge."),
+            ("UNVERIFIED_SOURCE", connected and bool(market.get("source_tool")), "Evidence must come from the observed official Binance MCP read tools."),
+            ("STALE_DATA", timedelta(0) <= now() - retrieved <= timedelta(seconds=EVIDENCE_MAX_AGE_SECONDS) and not market.get("force_stale"), "Refresh the market evidence before proposing the hedge."),
             ("SYMBOL_NOT_ALLOWED", intent.get("symbol") == "BNBUSDT", "Only BNBUSDT is supported in this demo."),
             ("INVALID_HEDGE_RATIO", D("1") <= ratio <= D("100"), "Choose a hedge ratio from 1% to 100%."),
             ("OVER_HEDGE", ratio <= D("100"), "Reduce the target so the simulated short does not exceed Spot BNB."),
@@ -161,8 +165,10 @@ class HedgeEngine:
     def propose(self, intent: dict[str, Any], market_overrides: dict[str, Any] | None = None, scenario: dict[str, Any] | None = None) -> dict[str, Any]:
         scenario = scenario or {}
         market = self.market(market_overrides)
+        if market.get("verification") == "unavailable":
+            raise HedgeError("BINANCE_EVIDENCE_UNAVAILABLE", "Refresh read-only Binance MCP evidence before creating a plan.", 503)
         spot, ratio, lev = dec(intent.get("spot_quantity", 10)), dec(intent["target_ratio"]), dec(intent.get("leverage", 2))
-        current = dec(self.exposure()["simulated_short_bnb"])
+        current = dec(self.exposure()["live_short_bnb"]) + dec(self.exposure()["simulated_short_bnb"])
         target = spot * ratio / 100
         adjustment = max(D("0"), target-current).quantize(QTY_STEP, rounding=ROUND_DOWN)
         price, duration = dec(market["perpetual_price"]), dec(intent["duration_hours"])
