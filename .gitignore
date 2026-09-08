@@ -5,8 +5,10 @@ __pycache__/
 .pydeps/
 data/
 ui/node_modules/
+node_modules/
 ui/.next/
 .env
 .impeccable/review/
 .agents/
 .codex/
+.vercel
