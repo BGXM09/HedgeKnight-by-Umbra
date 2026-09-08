@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Activity, ArrowDownToLine, Check, ChevronRight, CircleStop, Clock3, Copy, FileCheck2, Gauge, LayoutDashboard, LockKeyhole, Menu, OctagonAlert, Power, Radar, ReceiptText, RefreshCw, Settings, ShieldCheck, Sparkles, X } from "lucide-react";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API = process.env.NEXT_PUBLIC_API_URL || "";
 const commandDefault = "I hold 10 BNB. Hedge 50% of my exposure for 24 hours.";
 type Any = Record<string, any>;
 const money = (v:any) => `$${Number(v).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}`;
@@ -18,6 +18,7 @@ function Mark(){return <div className="mark" aria-hidden="true"><span/></div>}
 function Badge({children,tone="gold"}:{children:React.ReactNode,tone?:string}){return <span className={`badge ${tone}`}>{children}</span>}
 
 export default function Dashboard(){
+  const [landing,setLanding]=useState(true);
   const [nav,setNav]=useState("Overview"), [mobile,setMobile]=useState(false), [command,setCommand]=useState(commandDefault);
   const [ratio,setRatio]=useState(50), [duration,setDuration]=useState(24), [leverage,setLeverage]=useState(2);
   const [plan,setPlan]=useState<Any|null>(null), [position,setPosition]=useState<Any|null>(null), [receipts,setReceipts]=useState<Any[]>([]), [scenarios,setScenarios]=useState<Any[]>([]);
@@ -35,6 +36,7 @@ export default function Dashboard(){
   const loadScenario=async(id:string)=>{setBusy("Loading scenario");setError("");try{const r=await call(`/api/scenarios/${id}/load`,{method:"POST"});setPlan(r.plan);setRatio(r.scenario.ratio);setDuration(r.scenario.duration);setLeverage(r.scenario.leverage);setKill(id==="kill-switch");setNav("Create hedge")}catch(e:any){setError(e.message)}finally{setBusy("")}};
   const unwind=async()=>{if(!position)return;setBusy("Simulating reduce-only unwind");try{await call(`/api/positions/${position.position_id}/unwind-plan`,{method:"POST"});const r=await call(`/api/positions/${position.position_id}/unwind-simulate`,{method:"POST"});setPosition(r.position);setReceipts(x=>[r.receipt,...x])}catch(e:any){setError(e.message)}finally{setBusy("")}};
   const toggleKill=async()=>{const s=await call("/api/settings/kill-switch",{method:"POST",body:JSON.stringify({enabled:!kill})});setKill(s.kill_switch)};
+  if(landing)return <main className="landing"><header className="landing-nav"><div className="brand"><Mark/><div><strong>HedgeKnight</strong><span>by Umbra</span></div></div><div><Badge>DEMO</Badge><button className="quiet-link" onClick={()=>setLanding(false)}>Open dashboard <ChevronRight size={15}/></button></div></header><section className="landing-hero"><div className="landing-copy"><Badge tone="green">BINANCE AGENT OS · SIMULATED EXECUTION</Badge><h1>Keep your BNB.<br/><span>Control the exposure.</span></h1><p>Turn a plain-language protection request into a calculated, risk-checked, monitored BNB hedge—without selling the underlying asset.</p><div className="landing-actions"><button className="primary" onClick={()=>setLanding(false)}><ShieldCheck size={18}/> Launch interactive demo</button><button className="secondary" onClick={()=>{setLanding(false);setNav("Create hedge")}}>Create a 50% hedge <ChevronRight size={16}/></button></div><small>No wallet. No funds. No live orders. Every financial action is simulated.</small></div><div className="landing-mechanism"><div className="mechanism-head"><span>Protection request</span><Badge tone="muted">24 HOURS</Badge></div><blockquote>“I hold 10 BNB. Hedge 50% of my exposure.”</blockquote><div className="landing-flow"><div><span>Before</span><strong>10.000 <small>BNB</small></strong><i/></div><ChevronRight/><div><span>After</span><strong>5.000 <small>BNB</small></strong><i/></div></div><div className="landing-checks"><span><Check/> Deterministic risk gate</span><span><Check/> Exact plan confirmation</span><span><Check/> Tamper-evident receipt</span></div></div></section><section className="truth-strip"><div><Radar/><span><strong>Inspect</strong><small>Source-labelled evidence</small></span></div><div><Gauge/><span><strong>Calculate</strong><small>Decimal-safe hedge sizing</small></span></div><div><ShieldCheck/><span><strong>Protect</strong><small>Bounded simulated lifecycle</small></span></div><div><FileCheck2/><span><strong>Prove</strong><small>SHA-256 evidence receipts</small></span></div></section></main>;
   return <div className="app-shell">
     <aside className={mobile?"open":""}>
       <div className="brand"><Mark/><div><strong>HedgeKnight</strong><span>by Umbra</span></div><button className="mobile-close" onClick={()=>setMobile(false)} aria-label="Close navigation"><X/></button></div>
